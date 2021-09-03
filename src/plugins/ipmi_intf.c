@@ -61,6 +61,9 @@ extern struct ipmi_intf ipmi_open_intf;
 #ifdef IPMI_INTF_IMB
 extern struct ipmi_intf ipmi_imb_intf;
 #endif
+#ifdef IPMI_INTF_I2C
+extern struct ipmi_intf ipmi_i2c_intf;
+#endif
 #ifdef IPMI_INTF_LIPMI
 extern struct ipmi_intf ipmi_lipmi_intf;
 #endif
@@ -96,6 +99,9 @@ struct ipmi_intf * ipmi_intf_table[] = {
 #endif
 #ifdef IPMI_INTF_IMB
 	&ipmi_imb_intf,
+#endif
+#ifdef IPMI_INTF_I2C
+	&ipmi_i2c_intf,
 #endif
 #ifdef IPMI_INTF_LIPMI
 	&ipmi_lipmi_intf,
@@ -508,7 +514,7 @@ ipmi_intf_get_max_request_data_size(struct ipmi_intf * intf)
 	/* check if request size is not specified */
 	if (!size) {
 		/*
-		 * The IPMB standard overall message length for ‘non -bridging’
+		 * The IPMB standard overall message length for ï¿½non -bridgingï¿½
 		 * messages is specified as 32 bytes, maximum, including slave
 		 * address. This sets the upper limit for typical IPMI messages.
 		 * With the exception of messages used for bridging messages to
@@ -565,7 +571,7 @@ ipmi_intf_get_max_response_data_size(struct ipmi_intf * intf)
 	/* check if response size is not specified */
 	if (!size) {
 		/*
-		 * The IPMB standard overall message length for ‘non -bridging’
+		 * The IPMB standard overall message length for ï¿½non -bridgingï¿½
 		 * messages is specified as 32 bytes, maximum, including slave
 		 * address. This sets the upper limit for typical IPMI messages.
 		 * With the exception of messages used for bridging messages to

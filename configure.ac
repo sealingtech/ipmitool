@@ -82,6 +82,7 @@ xenable_intf_bmc=no
 xenable_intf_dbus=no
 xenable_intf_dummy=no
 xenable_intf_imb=yes
+xenable_intf_i2c=yes
 xenable_intf_lipmi=yes
 xenable_intf_open=yes
 #xenable_intf_serial=yes
@@ -546,6 +547,22 @@ if test "x$xenable_intf_imb" = "xyes"; then
 	IPMITOOL_INTF_LIB="$IPMITOOL_INTF_LIB imb/libintf_imb.la"
 fi
 
+dnl enable I2C interface
+AC_ARG_ENABLE([intf-i2c],
+	[AC_HELP_STRING([--enable-intf-i2c],
+			[enable i2c driver interface [default=auto]])],
+	[xenable_intf_i2c=$enableval],
+	[])
+if test "x$xenable_intf_i2c" = "xstatic" || test "x$xenable_intf_i2c" = "xplugin"; then
+	xenable_intf_i2c=yes
+fi
+if test "x$xenable_intf_i2c" = "xyes"; then
+	AC_DEFINE(IPMI_INTF_I2C, [1], [Define to 1 to enable Intel I2C interface.])
+	AC_SUBST(INTF_I2C, [i2c])
+	#AC_SUBST(INTF_I2C_LIB, [libintf_i2c.la])
+	#IPMITOOL_INTF_LIB="$IPMITOOL_INTF_LIB i2c/libintf_i2c.la"
+fi
+
 dnl enable Solaris LIPMI interface
 AC_CHECK_HEADER([sys/lipmi/lipmi_intf.h], [have_lipmi=yes], [have_lipmi=no])
 AC_ARG_ENABLE([intf-lipmi],
@@ -768,6 +785,7 @@ AC_MSG_RESULT([  usb     : $xenable_intf_usb])
 AC_MSG_RESULT([  lipmi   : $xenable_intf_lipmi])
 AC_MSG_RESULT([  serial  : $xenable_intf_serial])
 AC_MSG_RESULT([  dummy   : $xenable_intf_dummy])
+AC_MSG_RESULT([  i2c   : $xenable_intf_i2c])
 AC_MSG_RESULT([])
 AC_MSG_RESULT([Extra tools])
 AC_MSG_RESULT([  ipmievd   : yes])
