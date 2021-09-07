@@ -550,17 +550,17 @@ fi
 dnl enable I2C interface
 AC_ARG_ENABLE([intf-i2c],
 	[AC_HELP_STRING([--enable-intf-i2c],
-			[enable i2c driver interface [default=auto]])],
-	[xenable_intf_i2c=$enableval],
+			[enable I2C driver interface [default=auto]])],
+	[xenable_intf_imb=$enableval],
 	[])
 if test "x$xenable_intf_i2c" = "xstatic" || test "x$xenable_intf_i2c" = "xplugin"; then
 	xenable_intf_i2c=yes
 fi
 if test "x$xenable_intf_i2c" = "xyes"; then
-	AC_DEFINE(IPMI_INTF_I2C, [1], [Define to 1 to enable Intel I2C interface.])
+	AC_DEFINE(IPMI_INTF_I2C, [1], [Define to 1 to enable I2C interface.])
 	AC_SUBST(INTF_I2C, [i2c])
-	#AC_SUBST(INTF_I2C_LIB, [libintf_i2c.la])
-	#IPMITOOL_INTF_LIB="$IPMITOOL_INTF_LIB i2c/libintf_i2c.la"
+	AC_SUBST(INTF_I2C_LIB, [libintf_i2c.la])
+	IPMITOOL_INTF_LIB="$IPMITOOL_INTF_LIB i2c/libintf_i2c.la"
 fi
 
 dnl enable Solaris LIPMI interface
@@ -759,6 +759,7 @@ AC_CONFIG_FILES([Makefile
 		src/plugins/open/Makefile
 		src/plugins/free/Makefile
 		src/plugins/imb/Makefile
+		src/plugins/i2c/Makefile
 		src/plugins/bmc/Makefile
 		src/plugins/dbus/Makefile
 		src/plugins/usb/Makefile
@@ -779,13 +780,13 @@ AC_MSG_RESULT([  lanplus : $xenable_intf_lanplus])
 AC_MSG_RESULT([  open    : $xenable_intf_open])
 AC_MSG_RESULT([  free    : $xenable_intf_free])
 AC_MSG_RESULT([  imb     : $xenable_intf_imb])
+AC_MSG_RESULT([  i2c     : $xenable_intf_i2c])
 AC_MSG_RESULT([  bmc     : $xenable_intf_bmc])
 AC_MSG_RESULT([  dbus    : $xenable_intf_dbus])
 AC_MSG_RESULT([  usb     : $xenable_intf_usb])
 AC_MSG_RESULT([  lipmi   : $xenable_intf_lipmi])
 AC_MSG_RESULT([  serial  : $xenable_intf_serial])
 AC_MSG_RESULT([  dummy   : $xenable_intf_dummy])
-AC_MSG_RESULT([  i2c   : $xenable_intf_i2c])
 AC_MSG_RESULT([])
 AC_MSG_RESULT([Extra tools])
 AC_MSG_RESULT([  ipmievd   : yes])

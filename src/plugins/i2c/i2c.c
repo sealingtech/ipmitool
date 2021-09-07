@@ -63,54 +63,19 @@ static int ipmi_i2c_open(struct ipmi_intf * intf)
 
 static void ipmi_i2c_close(struct ipmi_intf * intf)
 {
+	printf("Closing Time!  Every new beginning comes from some other beginnings ends YEAH\n");
 	intf->opened = 0;
 	intf->manufacturer_id = IPMI_OEM_UNKNOWN;
 }
 
 static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), struct ipmi_rq *req)
 {
-	IMBPREQUESTDATA imbreq;
+	printf("Pew Pew\n");
 	static struct ipmi_rs rsp;
-	int status, i;
-	unsigned char ccode;
 
-	imbreq.rsSa	= IPMI_BMC_SLAVE_ADDR;
-	imbreq.rsLun	= 0;
-	imbreq.busType	= 0;
-	imbreq.netFn	= req->msg.netfn;
-	imbreq.cmdType	= req->msg.cmd;
 
-	imbreq.data = req->msg.data;
-	imbreq.dataLength = req->msg.data_len;
 
-	if (verbose > 1) {
-		printf("IMB rsSa       : %x\n", imbreq.rsSa);
-		printf("IMB netFn      : %x\n", imbreq.netFn);
-		printf("IMB cmdType    : %x\n", imbreq.cmdType);
-		printf("IMB dataLength : %d\n", imbreq.dataLength);
-	}
-
-	rsp.data_len = IPMI_IMB_BUF_SIZE;
-	memset(rsp.data, 0, rsp.data_len);
-
-	for (i=0; i<IPMI_IMB_MAX_RETRY; i++) {
-		if (verbose > 2)
-			printbuf(imbreq.data, imbreq.dataLength, "ipmi_imb request");
-		status = SendTimedImbpRequest(&imbreq, IPMI_IMB_TIMEOUT,
-					      rsp.data, &rsp.data_len, &ccode);
-		if (status == 0) {
-			if (verbose > 2)
-				printbuf(rsp.data, rsp.data_len, "ipmi_imb response");
-			break;
-		}
-		/* error */
-		printf("Error sending IMB request, status=%x ccode=%x\n",
-		       status, ccode);
-	}
-
-	rsp.ccode = ccode;
-
-	return &rsp;
+	return 0;
 }
 
 struct ipmi_intf ipmi_i2c_intf = {

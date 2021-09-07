@@ -41,11 +41,7 @@
 
 #define IMB_API
 
-#ifdef WIN32
-# define NO_MACRO_ARGS  1
-# include <stdio.h>
-# include <windows.h>
-#else /* LINUX, SCO_UW, UNIX */
+
 # include <fcntl.h>
 # include <stdio.h>
 # include <stdlib.h>
@@ -56,9 +52,9 @@
 # include <sys/stat.h>
 # include <sys/types.h>
 # include <unistd.h>
-#endif
 
-#include "imbapi.h"
+
+#include "i2capi.h"
 #include <sys/socket.h>
 #include <ipmitool/helper.h>
 #include <ipmitool/log.h>
@@ -94,67 +90,8 @@ static int fDriverTyp; /* from ipmicmd.c */
  *
  * Returns: returns 0 for Fail and 1 for Success, sets hDevice to open handle.
  */
-#ifdef WIN32
-int
-open_imb(void)
-{
-	/* This routine will be called from all other routines before doing any
-	 * interfacing with imb driver. It will open only once.
-	 */
-	IMBPREQUESTDATA requestData;
-	BYTE respBuffer[16];
-	DWORD respLength;
-	BYTE completionCode;
 
-	if (hDevice1 != 0) {
-		return 1;
-	}
 
-	/* Open IMB driver device */
-	hDevice = CreateFile("\\\\.\\Imb",
-			GENERIC_READ | GENERIC_WRITE,
-			FILE_SHARE_READ | FILE_SHARE_WRITE,
-			NULL,
-			OPEN_EXISTING,
-			FILE_ATTRIBUTE_NORMAL,
-			NULL);
-	if (!hDevice || INVALID_HANDLE_VALUE == hDevice) {
-		return 0;
-	}
-	/* Detect the IPMI version for processing requests later. This
-	 * is a crude but most reliable method to differentiate between
-	 * old IPMI versions and the 1.0 version. If we had used the
-	 * version field instead then we would have had to revalidate
-	 * all the older platforms (pai 4/27/99)
-	 */
-	requestData.cmdType = GET_DEVICE_ID;
-	requestData.rsSa = BMC_SA;
-	requestData.rsLun = BMC_LUN;
-	requestData.netFn = APP_NETFN ;
-	requestData.busType = PUBLIC_BUS;
-	requestData.data = NULL;
-	requestData.dataLength = 0;
-	respLength = 16;
-	if ((SendTimedImbpRequest(&requestData, (DWORD)400, respBuffer,
-					&respLength, &completionCode) != ACCESN_OK)
-			|| (completionCode != 0)) {
-		CloseHandle(hDevice);
-		return 0;
-	}
-        hDevice1 = hDevice;
-        if (respLength < (IPMI10_GET_DEVICE_ID_RESP_LENGTH - 1)) {
-		IpmiVersion = IPMI_09_VERSION;
-	} else {
-		if (respBuffer[4] == 0x51) {
-			IpmiVersion = IPMI_15_VERSION;
-		} else {
-			IpmiVersion = IPMI_10_VERSION;
-		}
-	}
-	return 1;
-} /* end open_imb for Win32 */
-
-#else  /* LINUX, SCO_UW, etc. */
 
 int
 open_imb(void)
@@ -238,7 +175,7 @@ open_imb(void)
 			IpmiVersion);
 	return 1;
 } /* end open_imb() */
-#endif  
+
 
 /* ipmi_open_ia */
 int
@@ -261,79 +198,13 @@ ipmi_close_ia(void)
 {
 	int rc = 0;
 	if (hDevice1 != 0) {
-#ifdef WIN32
-		CloseHandle(hDevice1);
-#else
+
 		rc = close(hDevice1);
-#endif
+
 	}
 	return rc;
 }
 
-#ifndef WIN32
-/* DeviceIoControl - Simulate NT DeviceIoControl using unix calls and structures.
- *
- * @dummy_hDevice - handle of device
- * @dwIoControlCode - control code of operation to perform
- * @lpvInBuffer, address of buffer for input data
- * @cbInBuffer, size of input buffer
- * @lpvOutBuffer, address of output buffer
- * @cbOutBuffer, size of output buffer
- * @lpcbBytesReturned, address of actual bytes of output
- * @lpoOverlapped address of overlapped struct
- *
- * returns - FALSE for fail and TRUE for success. Same as standard NTOS call as
- * it also sets Ntstatus.status.
- */
-static BOOL
-DeviceIoControl(HANDLE __UNUSED__(dummey_hDevice), DWORD dwIoControlCode, LPVOID
-		lpvInBuffer, DWORD cbInBuffer, LPVOID lpvOutBuffer,
-		DWORD cbOutBuffer, LPDWORD lpcbBytesReturned,
-		LPOVERLAPPED lpoOverlapped)
-{
-	struct smi s;
-	int rc;
-	int ioctl_status;
-
-	rc = open_imb();
-	if (rc == 0) {
-		return FALSE;
-	}
-	lprintf(LOG_DEBUG, "%s: ioctl cmd = 0x%lx", __func__,
-			dwIoControlCode);
-	lprintf(LOG_DEBUG, "cbInBuffer %d cbOutBuffer %d", cbInBuffer,
-			cbOutBuffer);
-	if (cbInBuffer > 41) {
-		cbInBuffer = 41; /* Intel driver max buf */
-	}
-
-	s.lpvInBuffer = lpvInBuffer;
-	s.cbInBuffer = cbInBuffer;
-	s.lpvOutBuffer = lpvOutBuffer;
-	s.cbOutBuffer = cbOutBuffer;
-	s.lpcbBytesReturned = lpcbBytesReturned;
-	s.lpoOverlapped = lpoOverlapped;
-	/* dummy place holder. Linux IMB driver doesn't return status or info
-	 * via it
-	 */
-	s.ntstatus = (LPVOID)&NTstatus;
-
-	if ((ioctl_status = ioctl(hDevice1, dwIoControlCode,&s)) < 0) {
-		lprintf(LOG_DEBUG, "%s %s: ioctl cmd = 0x%x failed",
-				__FILE__, __func__, dwIoControlCode);
-		return FALSE;
-	}
-	lprintf(LOG_DEBUG, "%s: ioctl_status %d bytes returned = %d",
-			__func__, ioctl_status, *lpcbBytesReturned);
-	if (ioctl_status == STATUS_SUCCESS) {
-		lprintf(LOG_DEBUG, "%s returning true", __func__);
-		return (TRUE);
-	} else {
-		lprintf(LOG_DEBUG, "%s returning false", __func__);
-		return (FALSE);
-	}
-}
-#endif
 
 /* Used only by UW. Left here for now. IMB driver will not accept this ioctl. */
 ACCESN_STATUS
@@ -1266,49 +1137,7 @@ SetShutDownCode(int delayTime, int code)
 //     virtualAddress pointer to the mapped virtual address
 //  Notes:      none
 *F*/
-#ifdef WIN32
-ACCESN_STATUS
-MapPhysicalMemory(int startAddress, int addressLength, int *virtualAddress)
-{
-	DWORD retLength;
-	BOOL status;
-	PHYSICAL_MEMORY_INFO pmi;
-   
-	if (startAddress == 0 || addressLength <= 0) {
-		return ACCESN_OUT_OF_RANGE;
-	}
 
-	pmi.InterfaceType = Internal;
-	pmi.BusNumber = 0;
-	pmi.BusAddress.HighPart = (LONG)0x0;
-	pmi.BusAddress.LowPart = (LONG)startAddress;
-	pmi.AddressSpace = (LONG)0;
-	pmi.Length = addressLength;
-
-	status = DeviceIoControl(hDevice, IOCTL_IMB_MAP_MEMORY, &pmi,
-			sizeof(PHYSICAL_MEMORY_INFO), virtualAddress,
-			sizeof(PVOID), &retLength, 0);
-	if (status == TRUE) {
-		return ACCESN_OK;
-	} else {
-		return ACCESN_ERROR;
-	}
-}
-
-ACCESN_STATUS
-UnmapPhysicalMemory(int virtualAddress, int Length)
-{
-	DWORD retLength;
-	BOOL status;
-	status = DeviceIoControl(hDevice, IOCTL_IMB_UNMAP_MEMORY,
-			&virtualAddress, sizeof(PVOID), NULL, 0, &retLength, 0);
-	if (status == TRUE) {
-		return ACCESN_OK;
-	} else {
-		return ACCESN_ERROR;
-	}
-}
-#else /* Linux, SCO, UNIX, etc. */
 ACCESN_STATUS
 MapPhysicalMemory(int startAddress, int addressLength, int *virtualAddress)
 {
@@ -1394,7 +1223,7 @@ UnmapPhysicalMemory(int virtualAddress, int Length)
 			virtualAddress, Length);
 	return ACCESN_OK;
 }
-#endif /* unix */
+
 
 /* GetIpmiVersion - returns current IPMI version. */
 BYTE

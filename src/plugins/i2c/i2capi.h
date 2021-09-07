@@ -118,21 +118,6 @@ typedef CCHAR * PCCHAR;
 typedef CSHORT * PCSHORT;
 typedef CLONG * PCLONG;
 typedef void * PVOID;
-#ifndef WIN32
-typedef void VOID;
-typedef struct _LARGE_INTEGER {
-	ULONG LowPart;
-	LONG HighPart;
-} LARGE_INTEGER;
-typedef struct _ULARGE_INTEGER {
-	ULONG LowPart;
-	ULONG HighPart;
-} ULARGE_INTEGER;
-#endif
-typedef LARGE_INTEGER * PLARGE_INTEGER;
-typedef LARGE_INTEGER PHYSICAL_ADDRESS;
-typedef LARGE_INTEGER * PPHYSICAL_ADDRESS;
-typedef ULARGE_INTEGER * PULARGE_INTEGER;
 typedef UCHAR BOOLEAN;
 typedef BOOLEAN *PBOOLEAN;
 typedef wchar_t		    WCHAR;
@@ -160,13 +145,7 @@ typedef UNICODE_STRING *PUNICODE_STRING;
 #define OUT	/* */
 #define OPTIONAL	/* */
 
-#ifndef WIN32
-#define FIELD_OFFSET(type, field)    ((LONG)&(((type *)0)->field))
-#define UNREFERENCED_PARAMETER(x)
-typedef	int HANDLE;
-#define	INVALID_HANDLE_VALUE	((HANDLE)-1)
-#endif
-typedef	HANDLE	*PHANDLE;
+
 /*
  Define the method codes for how buffers are passed for I/O and FS controls
 */
@@ -197,14 +176,11 @@ typedef	HANDLE	*PHANDLE;
  * ones. The macros expect 8bit entities, so I am cleaning what is sent to
  * us from imb_if.h  - Mahendra
  */
-#ifndef WIN32
-#define CTL_CODE(DeviceType, Function, Method, Access)\
-		_IO(DeviceType & 0x00FF, Function & 0x00FF)
-#else
+
 #define CTL_CODE( DeviceType, Function, Method, Access ) ((ULONG)(	\
     ((ULONG)(DeviceType) << 16) | ((ULONG)(Access) << 14) | ((ULONG)(Function) << 2) | ((ULONG)Method) \
 ))
-#endif
+
 #endif /*_WINDEFS_H */
 /*----------------------------------------------------------------------*/
 #ifndef	_SMI_H
@@ -393,56 +369,7 @@ typedef struct {
 #endif /* IMB_IF__ */
 /*----------------------------------------------------------------------*/
 /*  No asynchronous messages available */
-#define IMB_MSG_NOT_AVAILABLE            ((NTSTATUS)0xE0070012L)
-#ifdef IMBLOG_H__
-/* Define the facility codes */
-#define FACILITY_RPC_STUBS               0x3
-#define FACILITY_RPC_RUNTIME             0x2
-#define FACILITY_IO_ERROR_CODE           0x4
-#define IMB_IO_ERROR_CODE                0x7
 
-#define STATUS_SEVERITY_WARNING          0x2
-#define STATUS_SEVERITY_SUCCESS          0x0
-#define STATUS_SEVERITY_INFORMATIONAL    0x1
-#define STATUS_SEVERITY_ERROR            0x3
-/*  Not enough memory for internal storage  of device %1. */
-#define INSUFFICIENT_RESOURCES           ((NTSTATUS)0xE0070001L)
-
-#define INVALID_INPUT_BUFFER             ((NTSTATUS)0xE0070002L)
-
-#define INVALID_OUTPUT_BUFFER            ((NTSTATUS)0xE0070003L)
-
-#define IMB_SEND_TIMEOUT                 ((NTSTATUS)0xE0070004L)
-
-#define IMB_RECEIVE_TIMEOUT              ((NTSTATUS)0xE0070005L)
-
-#define IMB_IF_SEND_TIMEOUT              ((NTSTATUS)0xE0070006L)
-
-#define IMB_IF_RECEIVE_TIMEOUT           ((NTSTATUS)0xE0040007L)
-
-#define HARDWARE_FAILURE                 ((NTSTATUS)0xE0040008L)
-
-#define DRIVER_FAILURE                   ((NTSTATUS)0xE0040009L)
-
-#define IMB_INVALID_IF_RESPONSE          ((NTSTATUS)0xE004000AL)
-
-#define IMB_INVALID_PACKET               ((NTSTATUS)0xE004000BL)
-
-#define IMB_RESPONSE_DATA_OVERFLOW       ((NTSTATUS)0xE004000CL)
-
-#define IMB_INVALID_REQUEST              ((NTSTATUS)0xE007000DL)
-
-#define INVALID_DRIVER_IOCTL             ((NTSTATUS)0xE007000EL)
-
-#define INVALID_DRIVER_REQUEST           ((NTSTATUS)0xE007000FL)
-
-#define IMB_CANT_GET_SMS_BUFFER          ((NTSTATUS)0xE0070010L)
-
-#define INPUT_BUFFER_TOO_SMALL           ((NTSTATUS)0xE0070011L)
-
-#define IMB_SEND_ERROR                   ((NTSTATUS)0xE0070013L)
-#endif /* IMBLOG_H__ */
-/*----------------------------------------------------------------------*/
 #ifndef IMBAPI_H__
 #define IMBAPI_H__
 #include <sys/types.h>
@@ -494,7 +421,7 @@ typedef struct {
 	unsigned char	rsLun;	
 	unsigned char *	data;	
 	int		dataLength;
-} I2CREQUESTDATA;
+} IMBREQUESTDATA;
 /*
  * Request structure provided to SendTimedI2cRequest()
 */
@@ -528,19 +455,7 @@ typedef enum _INTERFACE_TYPE
     TurboChannel,
     MaximumInterfaceType
 } INTERFACE_TYPE, * PINTERFACE_TYPE;
-#ifdef WIN32
-/* From memIf.h */
-#pragma pack(1)
-typedef struct
-{
-    INTERFACE_TYPE   InterfaceType; // Isa, Eisa, etc....
-    ULONG            BusNumber;     // Bus number
-    PHYSICAL_ADDRESS BusAddress;    // Bus-relative address
-    ULONG            AddressSpace;  // 0 is memory, 1 is I/O
-    ULONG            Length;        // Length of section to map
-} PHYSICAL_MEMORY_INFO, * PPHYSICAL_MEMORY_INFO;
-#pragma pack()
-#endif
+
 /*#else	// not IMB_API */
 /*
  * These are defined in imb_if.h but are needed by users of the imbapi library
@@ -561,7 +476,7 @@ typedef struct
  ******************************/
 ACCESN_STATUS
 SendTimedImbpRequest (
-	IMBPREQUESTDATA *reqPtr,
+	I2CREQUESTDATA *reqPtr,
 	int		timeOut,
 	BYTE *		respDataPtr,
 	int *		respDataLen,	
@@ -577,7 +492,7 @@ SendTimedI2cRequest (
 	);
 ACCESN_STATUS
 SendAsyncImbpRequest (
-	IMBPREQUESTDATA *reqPtr,
+	I2CREQUESTDATA *reqPtr,
 	BYTE *		 seqNo		
 	);
 ACCESN_STATUS
