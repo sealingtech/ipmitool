@@ -44,6 +44,7 @@
 #include <ipmitool/ipmi_intf.h>
 #include <ipmitool/helper.h>
 #include <ipmitool/ipmi_sel.h>
+#include <ipmitool/log.h>
 
 #include "i2capi.h"
 
@@ -71,9 +72,39 @@ static void ipmi_i2c_close(struct ipmi_intf * intf)
 static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), struct ipmi_rq *req)
 {
 	printf("Pew Pew\n");
+
+	IMBREQUESTDATA imbreq;
 	static struct ipmi_rs rsp;
+	int status, i;
+	unsigned char ccode;
 
+	imbreq.rsSa	= IPMI_BMC_SLAVE_ADDR;
+	imbreq.rsLun	= 0;
+	imbreq.busType	= 0;
+	imbreq.netFn	= req->msg.netfn;
+	imbreq.cmdType	= req->msg.cmd;
 
+	imbreq.data = req->msg.data;
+	imbreq.dataLength = req->msg.data_len;
+
+	if (verbose > 1) {
+		printf("I2C rsSa       : %x\n", imbreq.rsSa);
+		printf("I2C netFn      : %x\n", imbreq.netFn);
+		printf("I2C cmdType    : %x\n", imbreq.cmdType);
+		printf("I2C data    : %x\n", *imbreq.data);
+		printf("I2C dataLength : %d\n", imbreq.dataLength);
+		for (i = 0; i < imbreq.dataLength ; i++) {
+			printf("0x%02x ", imbreq.data[i]);
+		}
+		printf("\n");
+
+	}
+
+	//rsp.data_len = IPMI_IMB_BUF_SIZE;
+	//memset(rsp.data, 0, rsp.data_len);
+
+	// need this to continue
+	rsp.ccode = 00;
 
 	return 0;
 }
