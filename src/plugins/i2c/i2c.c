@@ -138,7 +138,6 @@ static void ipmi_i2c_close(struct ipmi_intf * intf)
 
 static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), struct ipmi_rq *req)
 {
-	printf("Pew Pew\n");
 
 	I2CPACKET i2cPacket;
 	static struct ipmi_rs rsp;
@@ -164,23 +163,14 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 		for (i = 0; i < i2cPacket.imb.dataLength ; i++) {
 			printf("0x%02x ", i2cPacket.imb.data[i]);
 		}
-		printf("what\n");
 
-		//I2C address shifted left for the r/w bit being set
-		//char i2c_header = ADDR<<1;
-		//printf("i2c header: %s\n", i2c_header);
-		printf("before snprintf\n");
-		//snprintf(i2c_buf, 200, "hmm %x", imbreq.netFn);
 		i2c_buf[0] = ADDR << 1;
 		i2c_buf[1] = i2cPacket.imb.netFn << 2; //netfn shifted to make way for the LUN.
 		unsigned char checksum = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 2, 0);
 		i2c_buf[2] = checksum;
 		i2c_buf[3] = i2cPacket.imb.rsSa << 1; //LUN is 0, no need to add it
-		printf("1\n");
 		i2c_buf[4] = 0x00; // TODO: Not sure how to do the sequence
-		printf("2\n");
 		i2c_buf[5] = i2cPacket.imb.cmdType;
-		printf("3\n");
 
 		for(int i=0; i < i2cPacket.imb.dataLength; i++) {
 			i2c_buf[6+i] = i2cPacket.imb.data[i];
@@ -193,22 +183,6 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 		for(int i=0; i < 20; i++) {
 			printf("%02x ", i2c_buf[i]);
 		}
-
-
-		printf("checksum of IMB: %02x\n", checksum);
-
-
-
-
-
-		//memcpy(i2c_buf, imbreq.netFn);
-		//memcat(i2c_buf, "11");
-
-		//snprintf(i2c_buf, 20, "%s%s", "i2c_header", imbreq.netFn);
-
-
-		printf("after checksum\n");
-		//printf("command: %s %s", i2c_buf, checksum);
 
 	}
 
