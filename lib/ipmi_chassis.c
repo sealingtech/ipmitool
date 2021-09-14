@@ -1214,6 +1214,8 @@ chassis_bootparam_clear_ack(struct ipmi_intf *intf, bootinfo_ack_t flag)
 {
 	uint8_t flags[2] = { flag & ~RESERVED_ACK_MASK,
 	                     flag & ~RESERVED_ACK_MASK };
+	//REMOVE ME
+	printf("Clearing the bootparam!\n");
 
 	return ipmi_chassis_set_bootparam(intf,
 	                                  IPMI_CHASSIS_BOOTPARAM_INFO_ACK,

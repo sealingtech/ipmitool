@@ -567,4 +567,7 @@ RegisterForImbAsyncMessageNotification (unsigned int *handleId);
 ACCESN_STATUS
 UnRegisterForImbAsyncMessageNotification (unsigned int handleId,int iFlag);
 BYTE	GetIpmiVersion(void);
+
+unsigned char
+CalculateChecksum (char *buf, long bufLen);
 #endif /* IMBAPI_H__ */

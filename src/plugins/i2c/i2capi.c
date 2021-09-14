@@ -1231,3 +1231,21 @@ GetIpmiVersion()
 {
 	return IpmiVersion;
 }
+
+
+int
+CalculateChecksum(unsigned char * buffer, int size)
+{
+    int value = 0;
+    unsigned short tempChecksum = 0;
+    int checkSum = 0;
+
+    for (int index = 0; index < size - 1; index++) {
+                value = buffer[index];
+                tempChecksum += (unsigned short) (value & 0xFFFF);
+    }
+
+    checkSum = (~(tempChecksum & 0xFF) + 1) & 0xFF;
+
+    return checkSum;
+}

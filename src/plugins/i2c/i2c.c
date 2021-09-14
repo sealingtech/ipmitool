@@ -39,6 +39,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+//#include <linux/i2c.h>
+//#include <linux/i2c-dev.h>
+
+#include <sys/types.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include <ipmitool/ipmi.h>
 #include <ipmitool/ipmi_intf.h>
@@ -53,7 +59,54 @@
 #define IPMI_I2C_DEV		"/dev/i2c-2"
 #define IPMI_I2C_BUF_SIZE	64
 
+
+
+//I2C information
+#define ADDR 0x10
+int ret = 1;
+int fd;
+int rfd;
+int nfd;
+int dfd;
+int should_delete = 0;
+char buf[20];
+ssize_t bytes_read;
+ssize_t last_bytes_read = 0;
+struct timespec ts;
+const char *new_device = "ipmi-slave-24c02 0x1066";
+const char *delete_device = "0x1066";
+//size_t new_device_len = strlen(new_device);
+//size_t delete_device_len = strlen(delete_device);
+
 extern int verbose;
+
+/*
+unsigned char
+CalculateChecksum(unsigned char *hex, int n) {
+    unsigned char ck = 0;
+    for (int i=0; i<n; i+=1) {
+
+        unsigned val;
+        int cr = sscanf(hex + 2 * i, "%2x", &val);   // convert 2 hexa chars to a byte value
+        if (cr == 1) ck += val;
+    }
+    printf("checksum before: %x", ck);
+    return ck;
+}
+*/
+
+unsigned char
+CalculateChecksum( char *buf, long bufLen )
+{
+	static char tmpBuf[ 4 ];
+	long idx;
+	unsigned int cks;
+
+	for( idx = 0L, cks = 0; idx < bufLen; cks += (unsigned int)buf[ idx++ ] );
+	sprintf( tmpBuf, "%03d", (unsigned int)( cks % 256 ) );
+	return( tmpBuf );
+}
+
 
 static int ipmi_i2c_open(struct ipmi_intf * intf)
 {
@@ -77,6 +130,7 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 	static struct ipmi_rs rsp;
 	int status, i;
 	unsigned char ccode;
+	unsigned char i2c_buf[2] = "";
 
 	imbreq.rsSa	= IPMI_BMC_SLAVE_ADDR;
 	imbreq.rsLun	= 0;
@@ -96,7 +150,34 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 		for (i = 0; i < imbreq.dataLength ; i++) {
 			printf("0x%02x ", imbreq.data[i]);
 		}
-		printf("\n");
+		printf("what\n");
+
+		//I2C address shifted left for the r/w bit being set
+		//char i2c_header = ADDR<<1;
+		//printf("i2c header: %s\n", i2c_header);
+		printf("before snprintf\n");
+		//snprintf(i2c_buf, 200, "hmm %x", imbreq.netFn);
+		i2c_buf[0] = ADDR << 1;
+		i2c_buf[1] = imbreq.netFn;
+		i2c_buf[2] = imbreq.cmdType;
+
+
+		for(int i=0; i <= 2; i++) {
+			printf("before checksum: %02x\n", i2c_buf[i]);
+		}
+
+		unsigned char checksum = CalculateChecksum(i2c_buf, 2);
+		printf("checksum: %02x\n", checksum);
+
+
+		//memcpy(i2c_buf, imbreq.netFn);
+		//memcat(i2c_buf, "11");
+
+		//snprintf(i2c_buf, 20, "%s%s", "i2c_header", imbreq.netFn);
+
+
+		printf("after checksum\n");
+		//printf("command: %s %s", i2c_buf, checksum);
 
 	}
 

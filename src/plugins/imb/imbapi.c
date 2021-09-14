@@ -89,72 +89,7 @@ static HANDLE   hDevice1;
 static HANDLE   hDevice;
 static int fDriverTyp; /* from ipmicmd.c */
 
-/* open_imb - Open IMB device. Called from each routine to make sure that open
- * is done.
- *
- * Returns: returns 0 for Fail and 1 for Success, sets hDevice to open handle.
- */
-#ifdef WIN32
-int
-open_imb(void)
-{
-	/* This routine will be called from all other routines before doing any
-	 * interfacing with imb driver. It will open only once.
-	 */
-	IMBPREQUESTDATA requestData;
-	BYTE respBuffer[16];
-	DWORD respLength;
-	BYTE completionCode;
 
-	if (hDevice1 != 0) {
-		return 1;
-	}
-
-	/* Open IMB driver device */
-	hDevice = CreateFile("\\\\.\\Imb",
-			GENERIC_READ | GENERIC_WRITE,
-			FILE_SHARE_READ | FILE_SHARE_WRITE,
-			NULL,
-			OPEN_EXISTING,
-			FILE_ATTRIBUTE_NORMAL,
-			NULL);
-	if (!hDevice || INVALID_HANDLE_VALUE == hDevice) {
-		return 0;
-	}
-	/* Detect the IPMI version for processing requests later. This
-	 * is a crude but most reliable method to differentiate between
-	 * old IPMI versions and the 1.0 version. If we had used the
-	 * version field instead then we would have had to revalidate
-	 * all the older platforms (pai 4/27/99)
-	 */
-	requestData.cmdType = GET_DEVICE_ID;
-	requestData.rsSa = BMC_SA;
-	requestData.rsLun = BMC_LUN;
-	requestData.netFn = APP_NETFN ;
-	requestData.busType = PUBLIC_BUS;
-	requestData.data = NULL;
-	requestData.dataLength = 0;
-	respLength = 16;
-	if ((SendTimedImbpRequest(&requestData, (DWORD)400, respBuffer,
-					&respLength, &completionCode) != ACCESN_OK)
-			|| (completionCode != 0)) {
-		CloseHandle(hDevice);
-		return 0;
-	}
-        hDevice1 = hDevice;
-        if (respLength < (IPMI10_GET_DEVICE_ID_RESP_LENGTH - 1)) {
-		IpmiVersion = IPMI_09_VERSION;
-	} else {
-		if (respBuffer[4] == 0x51) {
-			IpmiVersion = IPMI_15_VERSION;
-		} else {
-			IpmiVersion = IPMI_10_VERSION;
-		}
-	}
-	return 1;
-} /* end open_imb for Win32 */
-
-#else  /* LINUX, SCO_UW, etc. */
 
 int
 open_imb(void)
@@ -238,7 +173,7 @@ open_imb(void)
 			IpmiVersion);
 	return 1;
 } /* end open_imb() */
-#endif  
+
 
 /* ipmi_open_ia */
 int
@@ -270,7 +205,7 @@ ipmi_close_ia(void)
 	return rc;
 }
 
-#ifndef WIN32
+
 /* DeviceIoControl - Simulate NT DeviceIoControl using unix calls and structures.
  *
  * @dummy_hDevice - handle of device
@@ -333,7 +268,7 @@ DeviceIoControl(HANDLE __UNUSED__(dummey_hDevice), DWORD dwIoControlCode, LPVOID
 		return (FALSE);
 	}
 }
-#endif
+
 
 /* Used only by UW. Left here for now. IMB driver will not accept this ioctl. */
 ACCESN_STATUS
@@ -892,13 +827,11 @@ SendTimedImbpRequest(IMBPREQUESTDATA *reqPtr, int timeOut, BYTE *respDataPtr,
 
 	lprintf(LOG_DEBUG, "%s: DeviceIoControl returned status = %d",
 			__func__, status);
-#ifdef DBG_IPMI
-	/* TODO */
+ 	/* TODO */
 	printf("%s: rsSa %x cmd %x netFn %x lun %x, status=%d, cc=%x, rlen=%d\n",
 			__func__, req->req.rsSa, req->req.cmd,
 			req->req.netFn, req->req.rsLun, status, resp->cCode,
 			respLength);
-#endif
 
 	if (status != TRUE) {
 		DWORD error;

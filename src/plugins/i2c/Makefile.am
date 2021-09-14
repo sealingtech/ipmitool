@@ -35,5 +35,5 @@ AM_CPPFLAGS 		= -I$(top_srcdir)/include
 EXTRA_LTLIBRARIES	= libintf_i2c.la
 noinst_LTLIBRARIES	= @INTF_I2C_LIB@
 libintf_i2c_la_LIBADD	= $(top_builddir)/lib/libipmitool.la
-libintf_i2c_la_SOURCES	= i2c.c
+libintf_i2c_la_SOURCES	= i2c.c 
 
