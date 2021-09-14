@@ -29,7 +29,7 @@
  * LIABILITY, ARISING OUT OF THE USE OF OR INABILITY TO USE THIS SOFTWARE,
  * EVEN IF SUN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
-
+#define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -39,9 +39,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-//#include <linux/i2c.h>
-//#include <linux/i2c-dev.h>
-
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
+#define __USE_MISC
 #include <sys/types.h>
 #include <sys/time.h>
 #include <time.h>
@@ -60,7 +61,6 @@
 #define IPMI_I2C_BUF_SIZE	64
 
 
-
 //I2C information
 #define ADDR 0x10
 int ret = 1;
@@ -75,46 +75,15 @@ ssize_t last_bytes_read = 0;
 struct timespec ts;
 const char *new_device = "ipmi-slave-24c02 0x1066";
 const char *delete_device = "0x1066";
-//size_t new_device_len = strlen(new_device);
-//size_t delete_device_len = strlen(delete_device);
 
 extern int verbose;
 
-/*
 unsigned char
-CalculateChecksum(unsigned char *hex, int n) {
-    unsigned char ck = 0;
-    for (int i=0; i<n; i+=1) {
-
-        unsigned val;
-        int cr = sscanf(hex + 2 * i, "%2x", &val);   // convert 2 hexa chars to a byte value
-        if (cr == 1) ck += val;
-    }
-    printf("checksum before: %x", ck);
-    return ck;
-}
-
-
-unsigned char
-CalculateChecksum( char *buf, long bufLen )
-{
-	static char tmpBuf[ 4 ];
-	long idx;
-	unsigned int cks;
-
-	for( idx = 0L, cks = 0; idx < bufLen; cks += (unsigned int)buf[ idx++ ] );
-	printf("values added up: %d", cks);
-	sprintf( tmpBuf, "%03d", (unsigned int)( cks % 256 ) );
-	return( tmpBuf );
-}
-*/
-
-unsigned char
-CalculateChecksum(const unsigned char bytes[], size_t bytesSize, int startAt)
+CalculateChecksum(const unsigned char bytes[], size_t bytesSize)
 {
     int i;
     unsigned char checksum = 0;
-    for (i = startAt; i < (bytesSize / sizeof(bytes[0])); i++) {
+    for (i = 0; i < (bytesSize / sizeof(bytes[0])); i++) {
         checksum += bytes[i];
     }
     checksum = ~checksum + 1;
@@ -124,6 +93,9 @@ CalculateChecksum(const unsigned char bytes[], size_t bytesSize, int startAt)
 
 static int ipmi_i2c_open(struct ipmi_intf * intf)
 {
+	size_t new_device_len = strlen(new_device);
+	size_t delete_device_len = strlen(delete_device);
+
 	printf("Info into The Open Space\n");
 
 	return 0;
@@ -143,7 +115,7 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 	static struct ipmi_rs rsp;
 	int status, i;
 	unsigned char ccode;
-	unsigned char i2c_buf[20] = "";
+	unsigned char i2c_buf[50] = "";  //I2C information is data + 7 bytes
 
 	i2cPacket.imb.rsSa	= IPMI_BMC_SLAVE_ADDR;
 	i2cPacket.imb.rsLun	= 0;
@@ -166,7 +138,7 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 
 		i2c_buf[0] = ADDR << 1;
 		i2c_buf[1] = i2cPacket.imb.netFn << 2; //netfn shifted to make way for the LUN.
-		unsigned char checksum = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 2, 0);
+		unsigned char checksum = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 2);
 		i2c_buf[2] = checksum;
 		i2c_buf[3] = i2cPacket.imb.rsSa << 1; //LUN is 0, no need to add it
 		i2c_buf[4] = 0x00; // TODO: Not sure how to do the sequence
@@ -176,12 +148,85 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 			i2c_buf[6+i] = i2cPacket.imb.data[i];
 		}
 
-		i2c_buf[6 + i2cPacket.imb.dataLength] = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 17, 3);
+		i2c_buf[6 + i2cPacket.imb.dataLength] = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 17);
+
+		size_t newSize = i2cPacket.imb.dataLength + 6;
+		char* final_i2c_buf = malloc( newSize * sizeof(char));
+		memcpy(final_i2c_buf, i2c_buf + 1, newSize * sizeof(char));
 
 		printf("i2c packet: ");
-		for(int i=0; i < 20; i++) {
-			printf("%02x ", i2c_buf[i]);
+		for(int i=0; i < newSize; i++) {
+			printf("%02x ", final_i2c_buf[i]);
 		}
+
+        size_t new_device_len = strlen(new_device);
+        size_t delete_device_len = strlen(delete_device);
+
+        printf("Info into The Open Space\n");
+
+        fd = open("/dev/i2c-2", O_RDWR);
+        if (fd < 0) {
+                fprintf(stderr, "Failed to open the ipmb file: %s\n", strerror(errno));
+                goto done;
+        }
+
+        dfd = open("/sys/bus/i2c/devices/i2c-2/delete_device", O_WRONLY);
+
+        if (dfd < 0) {
+                fprintf(stderr, "Failed to open the file for deleting a new slave device: %s\n", strerror(errno));
+                goto done;
+        }
+
+        nfd = open("/sys/bus/i2c/devices/i2c-2/new_device", O_WRONLY);
+        if (nfd < 0) {
+                fprintf(stderr, "Failed to open the file for creating a new slave device: %s\n", strerror(errno));
+                goto done;
+        }
+
+        if (write(nfd, new_device, new_device_len + 1) != new_device_len + 1) {
+                fprintf(stderr, "Failed to create a new I2C IPMI slave: %s\n", strerror(errno));
+                goto done;
+        }
+
+        should_delete = 1;
+
+        rfd = open("/sys/bus/i2c/devices/2-1066/ipmi-slave", O_RDONLY);
+        if (rfd < 0) {
+                fprintf(stderr, "Failed to open the ipmi-slave: %s\n", strerror(errno));
+                goto done;
+        }
+
+        if (ioctl(fd, I2C_SLAVE, ADDR) < 0) {
+                fprintf(stderr, "ioctl error: %s\n", strerror(errno));
+                goto done;
+        }
+
+	printf("going to write\n");
+		if (write(fd, final_i2c_buf, sizeof(final_i2c_buf)) != sizeof(final_i2c_buf)) {
+			fprintf(stderr, "failed to write the bytes: %s\n", strerror(errno));
+		}
+
+
+done:
+  if (fd >= 0) {
+    close(fd);
+  }
+  if (should_delete) {
+    if (write(dfd, delete_device, delete_device_len + 1) != delete_device_len + 1) {
+      fprintf(stderr, "Failed to remove the I2C IPMI slave: %s\n", strerror(errno));
+    }
+  }
+  if (dfd >= 0) {
+    close(dfd);
+  }
+  if (nfd >= 0) {
+    close(fd);
+  }
+  if (rfd >= 0) {
+    close(rfd);
+  }
+
+
 
 	}
 
@@ -190,6 +235,8 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 
 	// need this to continue
 	rsp.ccode = 00;
+	
+	close(fd);
 
 	return 0;
 }

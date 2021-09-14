@@ -585,5 +585,5 @@ UnRegisterForImbAsyncMessageNotification (unsigned int handleId,int iFlag);
 BYTE	GetIpmiVersion(void);
 
 unsigned char
-CalculateChecksum(const unsigned char bytes[], size_t bytes_size, int startAt);
+CalculateChecksum(const unsigned char bytes[], size_t bytes_size);
 #endif /* IMBAPI_H__ */
