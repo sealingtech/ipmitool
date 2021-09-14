@@ -176,7 +176,6 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 			i2c_buf[6+i] = i2cPacket.imb.data[i];
 		}
 
-		printf("4\n");
 		i2c_buf[6 + i2cPacket.imb.dataLength] = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 17, 3);
 
 		printf("i2c packet: ");
