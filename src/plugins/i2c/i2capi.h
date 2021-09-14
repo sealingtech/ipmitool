@@ -242,6 +242,7 @@ typedef struct {
 #define		SD_RESET				1
 #define		SD_POWER_OFF				2
 #pragma pack(1)
+
 /*
  * This is the generic IMB packet format, the final checksum can't be
  * represented in this structure and will show up as the last data byte
@@ -255,6 +256,10 @@ typedef struct {
 	BYTE cmd;
 	BYTE data[1];
 } ImbPacket;
+
+
+
+
 #define MIN_IMB_PACKET_SIZE	7 	
 #define MAX_IMB_PACKET_SIZE	33
 /*
@@ -422,6 +427,17 @@ typedef struct {
 	unsigned char *	data;	
 	int		dataLength;
 } IMBREQUESTDATA;
+
+/*
+ * Encapsulates ImbPacket inside of an I2C address
+ *
+ */
+typedef struct {
+	BYTE i2cAddress; // Need to shift this once, only "writes" are used
+	IMBREQUESTDATA imb;
+	BYTE cSum2;
+} I2CPACKET;
+
 /*
  * Request structure provided to SendTimedI2cRequest()
 */
@@ -569,5 +585,5 @@ UnRegisterForImbAsyncMessageNotification (unsigned int handleId,int iFlag);
 BYTE	GetIpmiVersion(void);
 
 unsigned char
-CalculateChecksum (char *buf, long bufLen);
+CalculateChecksum(const unsigned char bytes[], size_t bytes_size, int startAt);
 #endif /* IMBAPI_H__ */

@@ -93,7 +93,7 @@ CalculateChecksum(unsigned char *hex, int n) {
     printf("checksum before: %x", ck);
     return ck;
 }
-*/
+
 
 unsigned char
 CalculateChecksum( char *buf, long bufLen )
@@ -103,8 +103,22 @@ CalculateChecksum( char *buf, long bufLen )
 	unsigned int cks;
 
 	for( idx = 0L, cks = 0; idx < bufLen; cks += (unsigned int)buf[ idx++ ] );
+	printf("values added up: %d", cks);
 	sprintf( tmpBuf, "%03d", (unsigned int)( cks % 256 ) );
 	return( tmpBuf );
+}
+*/
+
+unsigned char
+CalculateChecksum(const unsigned char bytes[], size_t bytesSize, int startAt)
+{
+    int i;
+    unsigned char checksum = 0;
+    for (i = startAt; i < (bytesSize / sizeof(bytes[0])); i++) {
+        checksum += bytes[i];
+    }
+    checksum = ~checksum + 1;
+    return checksum;
 }
 
 
@@ -126,29 +140,29 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 {
 	printf("Pew Pew\n");
 
-	IMBREQUESTDATA imbreq;
+	I2CPACKET i2cPacket;
 	static struct ipmi_rs rsp;
 	int status, i;
 	unsigned char ccode;
-	unsigned char i2c_buf[2] = "";
+	unsigned char i2c_buf[20] = "";
 
-	imbreq.rsSa	= IPMI_BMC_SLAVE_ADDR;
-	imbreq.rsLun	= 0;
-	imbreq.busType	= 0;
-	imbreq.netFn	= req->msg.netfn;
-	imbreq.cmdType	= req->msg.cmd;
+	i2cPacket.imb.rsSa	= IPMI_BMC_SLAVE_ADDR;
+	i2cPacket.imb.rsLun	= 0;
+	i2cPacket.imb.busType	= 0;
+	i2cPacket.imb.netFn	= req->msg.netfn;
+	i2cPacket.imb.cmdType	= req->msg.cmd;
 
-	imbreq.data = req->msg.data;
-	imbreq.dataLength = req->msg.data_len;
+	i2cPacket.imb.data = req->msg.data;
+	i2cPacket.imb.dataLength = req->msg.data_len;
 
 	if (verbose > 1) {
-		printf("I2C rsSa       : %x\n", imbreq.rsSa);
-		printf("I2C netFn      : %x\n", imbreq.netFn);
-		printf("I2C cmdType    : %x\n", imbreq.cmdType);
-		printf("I2C data    : %x\n", *imbreq.data);
-		printf("I2C dataLength : %d\n", imbreq.dataLength);
-		for (i = 0; i < imbreq.dataLength ; i++) {
-			printf("0x%02x ", imbreq.data[i]);
+		printf("I2C rsSa       : %x\n", i2cPacket.imb.rsSa);
+		printf("I2C netFn      : %x\n", i2cPacket.imb.netFn);
+		printf("I2C cmdType    : %x\n", i2cPacket.imb.cmdType);
+		printf("I2C data    : %x\n", *i2cPacket.imb.data);
+		printf("I2C dataLength : %d\n", i2cPacket.imb.dataLength);
+		for (i = 0; i < i2cPacket.imb.dataLength ; i++) {
+			printf("0x%02x ", i2cPacket.imb.data[i]);
 		}
 		printf("what\n");
 
@@ -158,16 +172,33 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 		printf("before snprintf\n");
 		//snprintf(i2c_buf, 200, "hmm %x", imbreq.netFn);
 		i2c_buf[0] = ADDR << 1;
-		i2c_buf[1] = imbreq.netFn;
-		i2c_buf[2] = imbreq.cmdType;
+		i2c_buf[1] = i2cPacket.imb.netFn << 2; //netfn shifted to make way for the LUN.
+		unsigned char checksum = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 2, 0);
+		i2c_buf[2] = checksum;
+		i2c_buf[3] = i2cPacket.imb.rsSa << 1; //LUN is 0, no need to add it
+		printf("1\n");
+		i2c_buf[4] = 0x00; // TODO: Not sure how to do the sequence
+		printf("2\n");
+		i2c_buf[5] = i2cPacket.imb.cmdType;
+		printf("3\n");
 
-
-		for(int i=0; i <= 2; i++) {
-			printf("before checksum: %02x\n", i2c_buf[i]);
+		for(int i=0; i < i2cPacket.imb.dataLength; i++) {
+			i2c_buf[6+i] = i2cPacket.imb.data[i];
 		}
 
-		unsigned char checksum = CalculateChecksum(i2c_buf, 2);
-		printf("checksum: %02x\n", checksum);
+		printf("4\n");
+		i2c_buf[6 + i2cPacket.imb.dataLength] = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 17, 3);
+
+		printf("i2c packet: ");
+		for(int i=0; i < 20; i++) {
+			printf("%02x ", i2c_buf[i]);
+		}
+
+
+		printf("checksum of IMB: %02x\n", checksum);
+
+
+
 
 
 		//memcpy(i2c_buf, imbreq.netFn);
