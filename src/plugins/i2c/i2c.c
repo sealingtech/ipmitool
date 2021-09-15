@@ -193,7 +193,7 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 		printf("I2C rsSa       : %x\n", i2cPacket.imb.rsSa);
 		printf("I2C netFn      : %x\n", i2cPacket.imb.netFn);
 		printf("I2C cmdType    : %x\n", i2cPacket.imb.cmdType);
-		printf("I2C data    : %x\n", *i2cPacket.imb.data);
+		//printf("I2C data    : %x\n", *i2cPacket.imb.data); //can't print data... not all commands have data
 		printf("I2C dataLength : %d\n", i2cPacket.imb.dataLength);
 		for (i = 0; i < i2cPacket.imb.dataLength ; i++) {
 			printf("0x%02x ", i2cPacket.imb.data[i]);
