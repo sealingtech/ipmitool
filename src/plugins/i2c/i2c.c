@@ -69,7 +69,6 @@ int rfd;
 int nfd;
 int dfd;
 int should_delete = 0;
-char buf[20];
 ssize_t bytes_read;
 ssize_t last_bytes_read = 0;
 struct timespec ts;
@@ -98,12 +97,72 @@ static int ipmi_i2c_open(struct ipmi_intf * intf)
 
 	printf("Info into The Open Space\n");
 
+
+    fd = open("/dev/i2c-2", O_RDWR);
+    if (fd < 0) {
+            fprintf(stderr, "Failed to open the ipmb file: %s\n", strerror(errno));
+            return 1;
+    }
+
+    dfd = open("/sys/bus/i2c/devices/i2c-2/delete_device", O_WRONLY);
+
+    if (dfd < 0) {
+            fprintf(stderr, "Failed to open the file for deleting a new slave device: %s\n", strerror(errno));
+            return 1;
+    }
+
+    nfd = open("/sys/bus/i2c/devices/i2c-2/new_device", O_WRONLY);
+    if (nfd < 0) {
+            fprintf(stderr, "Failed to open the file for creating a new slave device: %s\n", strerror(errno));
+            return 1;
+    }
+
+    if (write(nfd, new_device, new_device_len + 1) != new_device_len + 1) {
+            fprintf(stderr, "Failed to create a new I2C IPMI slave: %s\n", strerror(errno));
+            return 1;
+    }
+
+    should_delete = 1;
+
+    rfd = open("/sys/bus/i2c/devices/2-1066/ipmi-slave", O_RDONLY);
+    if (rfd < 0) {
+            fprintf(stderr, "Failed to open the ipmi-slave: %s\n", strerror(errno));
+            return 1;
+    }
+
+    if (ioctl(fd, I2C_SLAVE, ADDR) < 0) {
+            fprintf(stderr, "ioctl error: %s\n", strerror(errno));
+            return 1;
+    }
+
 	return 0;
 }
 
 static void ipmi_i2c_close(struct ipmi_intf * intf)
 {
 	printf("Closing Time!  Every new beginning comes from some other beginnings ends YEAH\n");
+
+	if (fd >= 0) {
+	close(fd);
+	}
+	if (should_delete) {
+		size_t delete_device_len = strlen(delete_device);
+		if (write(dfd, delete_device, delete_device_len + 1) != delete_device_len + 1) {
+		  fprintf(stderr, "Failed to remove the I2C IPMI slave: %s\n", strerror(errno));
+		}
+	}
+	if (dfd >= 0) {
+	close(dfd);
+	}
+	if (nfd >= 0) {
+	close(fd);
+	}
+	if (rfd >= 0) {
+	close(rfd);
+	}
+
+	close(fd);
+
 	intf->opened = 0;
 	intf->manufacturer_id = IPMI_OEM_UNKNOWN;
 }
@@ -112,12 +171,16 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 {
 
 	I2CPACKET i2cPacket;
-	static struct ipmi_rs rsp;
 	int status, i;
 	unsigned char ccode;
 	unsigned char i2c_buf[50] = "";  //I2C information is data + 7 bytes
 
-	i2cPacket.imb.rsSa	= IPMI_BMC_SLAVE_ADDR;
+	//Response data structures
+	static struct ipmi_rs rsp; //This needs to be the final IPMI packet passed back
+	BYTE responseData[MAX_IMB_RESP_SIZE]; // raw array
+	ImbResponseBuffer *resp = (ImbResponseBuffer *)responseData; //IMB data structure
+
+	i2cPacket.imb.rsSa	= 0x66;
 	i2cPacket.imb.rsLun	= 0;
 	i2cPacket.imb.busType	= 0;
 	i2cPacket.imb.netFn	= req->msg.netfn;
@@ -151,8 +214,8 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 		i2c_buf[6 + i2cPacket.imb.dataLength] = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 17);
 
 		size_t newSize = i2cPacket.imb.dataLength + 6;
-		char* final_i2c_buf = malloc( newSize * sizeof(char));
-		memcpy(final_i2c_buf, i2c_buf + 1, newSize * sizeof(char));
+		char* final_i2c_buf = malloc( newSize * sizeof(char) );
+		memcpy(final_i2c_buf, i2c_buf + 1, newSize * sizeof(char) );
 
 		printf("i2c packet: ");
 		for(int i=0; i < newSize; i++) {
@@ -162,83 +225,43 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
         size_t new_device_len = strlen(new_device);
         size_t delete_device_len = strlen(delete_device);
 
-        printf("Info into The Open Space\n");
 
-        fd = open("/dev/i2c-2", O_RDWR);
-        if (fd < 0) {
-                fprintf(stderr, "Failed to open the ipmb file: %s\n", strerror(errno));
-                goto done;
-        }
 
-        dfd = open("/sys/bus/i2c/devices/i2c-2/delete_device", O_WRONLY);
-
-        if (dfd < 0) {
-                fprintf(stderr, "Failed to open the file for deleting a new slave device: %s\n", strerror(errno));
-                goto done;
-        }
-
-        nfd = open("/sys/bus/i2c/devices/i2c-2/new_device", O_WRONLY);
-        if (nfd < 0) {
-                fprintf(stderr, "Failed to open the file for creating a new slave device: %s\n", strerror(errno));
-                goto done;
-        }
-
-        if (write(nfd, new_device, new_device_len + 1) != new_device_len + 1) {
-                fprintf(stderr, "Failed to create a new I2C IPMI slave: %s\n", strerror(errno));
-                goto done;
-        }
-
-        should_delete = 1;
-
-        rfd = open("/sys/bus/i2c/devices/2-1066/ipmi-slave", O_RDONLY);
-        if (rfd < 0) {
-                fprintf(stderr, "Failed to open the ipmi-slave: %s\n", strerror(errno));
-                goto done;
-        }
-
-        if (ioctl(fd, I2C_SLAVE, ADDR) < 0) {
-                fprintf(stderr, "ioctl error: %s\n", strerror(errno));
-                goto done;
-        }
-
-	printf("going to write\n");
-		if (write(fd, final_i2c_buf, sizeof(final_i2c_buf)) != sizeof(final_i2c_buf)) {
+		printf("going to write\n");
+		if (write(fd, final_i2c_buf, newSize * sizeof(char)) != newSize * sizeof(char)) {
 			fprintf(stderr, "failed to write the bytes: %s\n", strerror(errno));
 		}
 
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000;
+		while ((bytes_read = read(rfd, responseData, 20)) < 0 || bytes_read != last_bytes_read) {
+			nanosleep(&ts, NULL);
+			last_bytes_read = bytes_read;
+			lseek(rfd, 0, SEEK_SET);
+		}
 
-done:
-  if (fd >= 0) {
-    close(fd);
-  }
-  if (should_delete) {
-    if (write(dfd, delete_device, delete_device_len + 1) != delete_device_len + 1) {
-      fprintf(stderr, "Failed to remove the I2C IPMI slave: %s\n", strerror(errno));
-    }
-  }
-  if (dfd >= 0) {
-    close(dfd);
-  }
-  if (nfd >= 0) {
-    close(fd);
-  }
-  if (rfd >= 0) {
-    close(rfd);
-  }
-
-
-
+		printf("Bytes read: %ld\n", bytes_read);
+		if (bytes_read > 0) {
+			for (int i = 0; i < bytes_read; i++) {
+			  printf("0x%02x ", responseData[i]);
+			}
+			printf("\n");
+		}
 	}
 
-	//rsp.data_len = IPMI_IMB_BUF_SIZE;
-	//memset(rsp.data, 0, rsp.data_len);
+
 
 	// need this to continue
-	rsp.ccode = 00;
-	
-	close(fd);
+	size_t respDataLen = sizeof(responseData) - 1;
+	//if ((respDataLen) && (responseData)) {
+	memcpy(responseData - 2, resp->data, respDataLen - 2);
+	//}
 
-	return 0;
+	printf("Returning the ccode: %02x\n", resp->cCode);
+
+	
+
+	return &rsp;
 }
 
 struct ipmi_intf ipmi_i2c_intf = {
