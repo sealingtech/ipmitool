@@ -54,6 +54,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* WIN32 defines this in stdio.h */
 #include <wchar.h>
 #endif
+
 #define far
 #define near
 #define FAR                 far
@@ -84,67 +85,8 @@ typedef int                 INT;
 typedef unsigned int        UINT;
 typedef unsigned int        *PUINT;
 typedef DWORD NTSTATUS;
-/*
-  File structures
-*/
-#ifndef WIN32
-typedef struct _OVERLAPPED {
-    DWORD   Internal;
-    DWORD   InternalHigh;
-    DWORD   Offset;
-    DWORD   OffsetHigh;
-/*    HANDLE  hEvent; */
-} OVERLAPPED, *LPOVERLAPPED;
 #endif
 /*
- * Data structure redefines
- */
-typedef char CHAR;
-typedef short SHORT;
-typedef long LONG;
-typedef char * PCHAR;
-typedef short * PSHORT;
-typedef long * PLONG;
-typedef unsigned char UCHAR;
-typedef unsigned short USHORT;
-typedef unsigned long ULONG;
-typedef unsigned char * PUCHAR;
-typedef unsigned short * PUSHORT;
-typedef unsigned long * PULONG;
-typedef char CCHAR;
-typedef short CSHORT;
-typedef ULONG CLONG;
-typedef CCHAR * PCCHAR;
-typedef CSHORT * PCSHORT;
-typedef CLONG * PCLONG;
-typedef void * PVOID;
-typedef UCHAR BOOLEAN;
-typedef BOOLEAN *PBOOLEAN;
-typedef wchar_t		    WCHAR;
-typedef WCHAR		    *PWCHAR, *PWSTR;
-typedef CONST WCHAR	    *LPCWSTR, *PCWSTR;
-
-#ifndef _SYS_TYPES_H
-#ifndef _CADDR_T
-#define _CADDR_T
-  typedef char *        caddr_t;
-#endif
-#endif
-/*
- Unicode strings are counted 16-bit character strings. If they are
- NULL terminated, Length does not include trailing NULL.
-*/
-typedef struct _UNICODE_STRING {
-    USHORT Length;
-    USHORT MaximumLength;
-    PWSTR  Buffer;
-} UNICODE_STRING;
-typedef UNICODE_STRING *PUNICODE_STRING;
-#define UNICODE_NULL ((WCHAR)0)   /* winnt*/
-#define IN	/* */
-#define OUT	/* */
-#define OPTIONAL	/* */
-
 
 /*
  Define the method codes for how buffers are passed for I/O and FS controls
@@ -181,56 +123,6 @@ typedef UNICODE_STRING *PUNICODE_STRING;
     ((ULONG)(DeviceType) << 16) | ((ULONG)(Access) << 14) | ((ULONG)(Function) << 2) | ((ULONG)Method) \
 ))
 
-#endif /*_WINDEFS_H */
-/*----------------------------------------------------------------------*/
-#ifndef	_SMI_H
-#define	_SMI_H
-#define SMI_Version1_00	0x00001000
-struct smi {
-    DWORD smi_VersionNo;
-    DWORD smi_Reserved1;
-    DWORD smi_Reserved2;
-    LPVOID ntstatus;	/* address of NT status block*/
-    LPVOID  lpvInBuffer;        /* address of buffer for input data*/
-    DWORD  cbInBuffer;  /* size of input buffer*/
-    LPVOID  lpvOutBuffer;       /* address of output buffer*/
-    DWORD  cbOutBuffer; /* size of output buffer*/
-    LPDWORD  lpcbBytesReturned; /* address of actual bytes of output*/
-    LPOVERLAPPED  lpoOverlapped;         /* address of overlapped structure*/
-};
-#ifndef STATUS_SUCCESS
-typedef struct _IO_STATUS_BLOCK {
-    ULONG Status;
-    ULONG Information;
-} IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
-/*
- * I2C ioctl's return NTStatus codes
- */
-#define STATUS_SUCCESS                   (0x00000000U)
-#define STATUS_UNSUCCESSFUL              (0xC0000001U)
-#define STATUS_DEVICE_BUSY               (0x80000011U)
-#ifndef WIN32
-#define STATUS_PENDING                   (0x00000103U)
-// see <win2000ddk>\inc\winnt.h(1171)
-#endif
-#define STATUS_INVALID_PARAMETER         (0xC000000DU)
-#define STATUS_INVALID_DEVICE_REQUEST    (0xC0000010U)
-#define STATUS_BUFFER_TOO_SMALL          (0xC0000023U)
-#define STATUS_FILE_CLOSED               (0xC0000128U)
-#define STATUS_INSUFFICIENT_RESOURCES    (0xC000009AU)
-#define STATUS_NO_DATA_DETECTED          (0x80000022U)
-#define STATUS_NO_SUCH_DEVICE            (0xC000000EU)
-#define STATUS_ALLOTTED_EXCEEDED         (0xC000000FU)
-#define STATUS_IO_DEVICE_ERROR           (0xC0000185U)
-#define STATUS_TOO_MANY_OPEN_FILES       (0xC000011FU)
-#define STATUS_ACCESS_DENIED             (0xC0000022U)
-#define STATUS_BUFFER_OVERFLOW           (0x80000005U)
-#define STATUS_CANCELLED                 (0xC0000120U)
-#endif	/* STATUS_SUCCESS*/
-#endif	/* _SMI_H*/
-/*----------------------------------------------------------------------*/
-#ifndef IMB_IF__
-#define IMB_IF__
 /*
  * This is the structure passed in to the IOCTL_IMB_SHUTDOWN_CODE request
  */
@@ -303,13 +195,7 @@ typedef struct {
 	BYTE dataLength;
 	BYTE data[1];	
 } ImbRequest;
-typedef struct {
-   DWORD	flags;			/* request flags*/
-#define NO_RESPONSE_EXPECTED	0x01	/*don't wait around for an IMB response*/
-   DWORD	timeOut;		/* in uSec units*/
-   ImbRequest	req;			/* message buffer*/
-} ImbRequestBuffer;
-#define MIN_IMB_REQ_BUF_SIZE	13	/* a buffer without any request data*/
+
 /************************
  *  ImbResponseBuffer
  ************************/
@@ -326,54 +212,11 @@ typedef struct {
 	BYTE       cCode;	
 	BYTE       data[1];	
 } ImbResponseBuffer;
+
 #define MIN_IMB_RESP_BUF_SIZE	1	
 #define MAX_IMB_RESP_SIZE		(MIN_IMB_RESP_BUF_SIZE + MAX_IMB_RESPONSE_SIZE)
 #pragma pack()
-/*
- * Async message access structures and types
- */
-typedef DWORD	ImbAsyncSeq;
-/*
- * This is the structure passed in to IOCTL_IMB_GET_ASYNC_MSG
-*/
-typedef struct {
-	DWORD		timeOut;   
-	ImbAsyncSeq	lastSeq;   
-} ImbAsyncRequest;
-#define ASYNC_SEQ_START		0
-typedef struct {
-	ImbAsyncSeq	thisSeq;
-	BYTE data[1];
-} ImbAsyncResponse;
-#define MIN_ASYNC_RESP_SIZE	sizeof( ImbAsyncSeq )
-#define MAX_ASYNC_RESP_SIZE	(MIN_ASYNC_RESP_SIZE + MAX_IMB_PACKET_SIZE)
-/*
-** Driver Ioctls
-** In Linux, these calculate to:
-** IOCTL_IMB_SEND_MESSAGE    =1082
-** IOCTL_IMB_GET_ASYNC_MSG   =1088
-** IOCTL_IMB_MAP_MEMORY      =108e
-** IOCTL_IMB_UNMAP_MEMORY    =1090
-** IOCTL_IMB_SHUTDOWN_CODE   =1092
-** IOCTL_IMB_REGISTER_ASYNC_OBJ  =1098
-** IOCTL_IMB_DEREGISTER_ASYNC_OBJ=109a
-** IOCTL_IMB_CHECK_EVENT     =109c
-** IOCTL_IMB_POLL_ASYNC      =1094
-*/
-#define FILE_DEVICE_IMB			0x00008010
-#define IOCTL_IMB_BASE			0x00000880
-#define IOCTL_IMB_SEND_MESSAGE		CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 2),  METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_GET_ASYNC_MSG		CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 8),  METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_MAP_MEMORY		CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 14), METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_UNMAP_MEMORY		CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 16), METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_SHUTDOWN_CODE		CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 18), METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_REGISTER_ASYNC_OBJ	CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 24), METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_DEREGISTER_ASYNC_OBJ	CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 26), METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_CHECK_EVENT		CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 28), METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_IMB_POLL_ASYNC		CTL_CODE(FILE_DEVICE_IMB, (IOCTL_IMB_BASE + 20), METHOD_BUFFERED, FILE_ANY_ACCESS)
-#endif /* IMB_IF__ */
-/*----------------------------------------------------------------------*/
-/*  No asynchronous messages available */
+
 
 #ifndef IMBAPI_H__
 #define IMBAPI_H__
@@ -401,19 +244,6 @@ typedef struct {
 #define	IPMB_LUN			0x2
 #define	EMP_LUN				0x0
 
-#define		PUBLIC_BUS		0
-
-#define BMC_CONTROLLER			0x20
-#define FPC_CONTROLLER			0x22
-typedef enum {
-	ACCESN_OK,
-	ACCESN_ERROR,
-	ACCESN_OUT_OF_RANGE,
-	ACCESN_END_OF_DATA,
-	ACCESN_UNSUPPORTED,
-	ACCESN_INVALID_TRANSACTION,
-	ACCESN_TIMED_OUT
-} ACCESN_STATUS;
 #pragma pack(1)
 /*
  * Request structure provided to SendTimedImbpRequest()
@@ -449,141 +279,7 @@ typedef struct {
 	int		dataLength;	
 } I2CREQUESTDATA;
 #pragma pack()
-/*#ifdef IMB_API
- *
- * This section is provided to be able to compile using imb_if.h
- *
- *
- * function return type. This is also defined in the local instrumentation
- * so we ifdef here to avoid conflict.
-*/
-#define METHOD_BUFFERED		0
-#define FILE_ANY_ACCESS		0
-/*
- * This is necessary to compile using memIf.h
- */
-typedef enum _INTERFACE_TYPE
-{
-    Internal,
-    Isa,
-    Eisa,
-    MicroChannel,
-    TurboChannel,
-    MaximumInterfaceType
-} INTERFACE_TYPE, * PINTERFACE_TYPE;
-
-/*#else	// not IMB_API */
-/*
- * These are defined in imb_if.h but are needed by users of the imbapi library
-*/
-#define ASYNC_SEQ_START		0
-/*
- * This is the generic IMB packet format, the final checksum can't be
- * represented in this structure and will show up as the last data byte
- */
-/*
- #define MIN_IMB_PACKET_SIZE	7
- #define MAX_IMB_PACKET_SIZE	33
-*/
-#define	MAX_BUFFER_SIZE		64
-/*#endif // IMB_API */
-/****************************** 
- *  FUNCTION PROTOTYPES
- ******************************/
-ACCESN_STATUS
-SendTimedImbpRequest (
-	I2CREQUESTDATA *reqPtr,
-	int		timeOut,
-	BYTE *		respDataPtr,
-	int *		respDataLen,	
-	BYTE *		completionCode
-	);
-ACCESN_STATUS
-SendTimedI2cRequest (
-	I2CREQUESTDATA *reqPtr,	
-	int		timeOut,
-	BYTE *		respDataPtr,	
-	int *		respDataLen,
-	BYTE *		completionCode	
-	);
-ACCESN_STATUS
-SendAsyncImbpRequest (
-	I2CREQUESTDATA *reqPtr,
-	BYTE *		 seqNo		
-	);
-ACCESN_STATUS
-GetAsyncImbpMessage (
-	ImbPacket *	msgPtr,	
-	DWORD *		msgLen,	
-	DWORD		timeOut,
-	ImbAsyncSeq *	seqNo,	
-	DWORD		channelNumber 
-	);
-ACCESN_STATUS
-GetAsyncImbpMessage_Ex (
-	ImbPacket *	msgPtr,	
-	DWORD *		msgLen,
-	DWORD		timeOut,
-	ImbAsyncSeq *	seqNo,	
-	DWORD		channelNumber, 
-	BYTE *		sessionHandle, 
-	BYTE *		privilege 
-	);
-ACCESN_STATUS
-UnmapPhysicalMemory( int virtualAddress, int Length );
-ACCESN_STATUS
-StartAsyncMesgPoll(void);
-ACCESN_STATUS
-MapPhysicalMemory (
-	int startAddress,	
-	int addressLength,
-	int *virtualAddress	
-	);
-ACCESN_STATUS
-SetShutDownCode (
-	int delayTime,
-	int code	
-	);
-ACCESN_STATUS
-SendTimedEmpMessageResponse (
-	ImbPacket * ptr,	
-	char      *responseDataBuf,
-	int	  responseDataLen,
-	int 	  timeOut
-	);
-ACCESN_STATUS
-SendTimedEmpMessageResponse_Ex (
-	ImbPacket * ptr,
-	char      *responseDataBuf,
-	int	  responseDataLen,
-	int 	  timeOut,	
-	BYTE	  sessionHandle,
-	BYTE	  channelNumber
-	);
-ACCESN_STATUS
-SendTimedLanMessageResponse (
-	ImbPacket * ptr,
-	char      *responseDataBuf,
-	int	  responseDataLen,
-	int 	  timeOut	
-	);
-ACCESN_STATUS
-SendTimedLanMessageResponse_Ex (
-	ImbPacket * ptr,
-	char      *responseDataBuf,
-	int	  responseDataLen,
-	int 	  timeOut	,
-	BYTE	  sessionHandle,
-	BYTE	  channelNumber
-	);
-ACCESN_STATUS
-IsAsyncMessageAvailable (unsigned int   eventId	);
-ACCESN_STATUS
-RegisterForImbAsyncMessageNotification (unsigned int *handleId);
-ACCESN_STATUS
-UnRegisterForImbAsyncMessageNotification (unsigned int handleId,int iFlag);
-BYTE	GetIpmiVersion(void);
 
 unsigned char
-CalculateChecksum(const unsigned char bytes[], size_t bytes_size);
-#endif /* IMBAPI_H__ */
+CalculateChecksum(const unsigned char bytes[], size_t bytesSize);
+#endif /* I2CAPI_H__ */

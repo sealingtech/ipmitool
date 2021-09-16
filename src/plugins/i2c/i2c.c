@@ -77,18 +77,6 @@ const char *delete_device = "0x1066";
 
 extern int verbose;
 
-unsigned char
-CalculateChecksum(const unsigned char bytes[], size_t bytesSize)
-{
-    int i;
-    unsigned char checksum = 0;
-    for (i = 0; i < (bytesSize / sizeof(bytes[0])); i++) {
-        checksum += bytes[i];
-    }
-    checksum = ~checksum + 1;
-    return checksum;
-}
-
 
 static int ipmi_i2c_open(struct ipmi_intf * intf)
 {
