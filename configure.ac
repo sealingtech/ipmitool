@@ -649,6 +649,8 @@ if test "x$xenable_ipmishell" = "xyes"; then
 	AC_DEFINE(HAVE_READLINE, [1], [Define to 1 if readline present.])
 fi
 
+LIBS="$LIBS -lpigpio"
+
 dnl Enable -Wall -Werror
 AC_ARG_ENABLE([buildcheck],
 	[AC_HELP_STRING([--enable-buildcheck],
