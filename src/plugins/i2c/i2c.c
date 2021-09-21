@@ -74,22 +74,23 @@ int getControlBits(int, bool);
 const int slaveAddress = 0x66; // <-- Your address of choice
 bsc_xfer_t xfer; // Struct to control data flow
 struct timespec ts;
+int status = 0;
 
 
 
 static int ipmi_i2c_open(struct ipmi_intf * intf)
 {
 	gpioInitialise();
-    printf("Initialized GPIOs\n");
+	if (verbose > 1) printf("Initialized GPIOs\n");
     // Close old device (if any)
     xfer.control = getControlBits(slaveAddress, false); // To avoid conflicts when restarting
     bscXfer(&xfer);
     // Open and set Set I2C slave Address
     xfer.control = getControlBits(slaveAddress, true);
-    int status = bscXfer(&xfer); // Should now be visible in I2C-Scanners
+    status = bscXfer(&xfer); // Should now be visible in I2C-Scanners
     if (status >= 0)
     {
-        printf("Opened slave\n");
+    	if (verbose > 1) printf("Opened slave\n");
         xfer.rxCnt = 0;
     }else
         printf("Failed to open slave!!!\n");
@@ -97,15 +98,11 @@ static int ipmi_i2c_open(struct ipmi_intf * intf)
 
 static void ipmi_i2c_close(struct ipmi_intf * intf)
 {
-	printf("Closing Time!  Every new beginning comes from some other beginnings ends YEAH\n");
+	if (verbose > 1) {
+		printf("Closing Time!  Every new beginning comes from some other beginnings ends YEAH\n");
 
-
-    printf("Initialized GPIOs\n");
-    xfer.control = getControlBits(slaveAddress, false);
-    bscXfer(&xfer);
-    printf("Closed slave.\n");
-    gpioTerminate();
-    printf("Terminated GPIOs.\n");
+		printf("Initialized GPIOs\n");
+	}
 
 	intf->opened = 0;
 	intf->manufacturer_id = IPMI_OEM_UNKNOWN;
@@ -113,6 +110,9 @@ static void ipmi_i2c_close(struct ipmi_intf * intf)
 
 static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), struct ipmi_rq *req)
 {
+    ts.tv_sec = 0;
+	ts.tv_nsec = 150000000;
+	nanosleep(&ts, NULL);
 
 	I2CPACKET i2cPacket;
 	int status, i;
@@ -123,6 +123,15 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 	static struct ipmi_rs rsp; //This needs to be the final IPMI packet passed back
 	BYTE responseData[MAX_IMB_RESP_SIZE]; // raw array
 	ImbResponseBuffer *resp = (ImbResponseBuffer *)responseData; //IMB data structure
+
+	//Starting up the device
+	gpioInitialise();
+	if (verbose > 1) printf("Initialized GPIOs\n");
+    xfer.control = getControlBits(slaveAddress, false); // To avoid conflicts when restarting
+    bscXfer(&xfer);
+    // Open and set Set I2C slave Address
+    xfer.control = getControlBits(slaveAddress, true);
+    status = bscXfer(&xfer); // Should now be visible in I2C-Scanners
 
 	i2cPacket.imb.rsSa	= 0x66;
 	i2cPacket.imb.rsLun	= 0;
@@ -151,9 +160,10 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 	i2c_buf[3] = i2cPacket.imb.rsSa << 1; //LUN is 0, no need to add it
 	i2c_buf[4] = 0x00; // TODO: Not sure how to do the sequence
 	i2c_buf[5] = i2cPacket.imb.cmdType;
-
-	for(int i=0; i < i2cPacket.imb.dataLength; i++) {
-		i2c_buf[6+i] = i2cPacket.imb.data[i];
+	if (verbose > 1) {
+		for(int i=0; i < i2cPacket.imb.dataLength; i++) {
+			i2c_buf[6+i] = i2cPacket.imb.data[i];
+		}
 	}
 
 	i2c_buf[6 + i2cPacket.imb.dataLength] = CalculateChecksum(i2c_buf, sizeof(i2c_buf[0]) * 17);
@@ -161,41 +171,60 @@ static struct ipmi_rs * ipmi_i2c_send_cmd(struct ipmi_intf *__UNUSED__(intf), st
 	size_t newSize = i2cPacket.imb.dataLength + 6;
 	char* final_i2c_buf = malloc( newSize * sizeof(char) );
 	memcpy(final_i2c_buf, i2c_buf + 1, newSize * sizeof(char) );
-
-	printf("i2c packet: ");
-	for(int i=0; i < newSize; i++) {
-		printf("%02x ", final_i2c_buf[i]);
+	if (verbose > 1) {
+		printf("i2c packet: ");
+		for(int i=0; i < newSize; i++) {
+			printf("%02x ", final_i2c_buf[i]);
+		}
+		printf("going to write\n");
 	}
 
-
-
-	printf("going to write\n");
 	int handle = i2cOpen(1, 0x10, 0);
 	i2cWriteDevice(handle, final_i2c_buf , newSize);
 
 	ts.tv_sec = 0;
-	ts.tv_nsec = 5000000;
+	ts.tv_nsec = 150000000;
 	nanosleep(&ts, NULL);
 
 	bscXfer(&xfer);
-	printf("We're going in!\n 1..2..3 and go... like a kamikazee.  rxCnt: %d\n", xfer.rxCnt);
-    if(xfer.rxCnt > 0) {
-	    for(int i = 0; i < xfer.rxCnt; i++)
-	        printf(" %02x ", xfer.rxBuf[i]);
-	    	responseData[i] = xfer.rxBuf[i];
-    	printf("\n");
+	if (verbose > 1) {
+		printf("We're going in!\n 1..2..3 and go... like a kamikazee.  rxCnt: %d\n", xfer.rxCnt);
+
+
+		if(xfer.rxCnt > 0) {
+			for(int i = 0; i < xfer.rxCnt; i++)
+				printf(" %02x ", xfer.rxBuf[i]);
+			printf("\n");
+		}
+	}
+
+
+
+	rsp.data_len = MAX_IMB_RESP_SIZE;
+	memset(rsp.data, 0, rsp.data_len);
+
+	memcpy( rsp.data, xfer.rxBuf + 6, xfer.rxCnt * sizeof(char) - 6);
+
+    rsp.ccode = xfer.rxBuf[3];
+    if (verbose > 1) {
+    	printf("Returning the ccode: %02x\n", rsp.ccode);
+
+		printf("final output:\n");
+		if(xfer.rxCnt > 0) {
+			for(int i = 0; i < rsp.data_len; i++)
+				printf(" %02x ", rsp.data[i]);
+			printf("\n");
+		}
     }
 
-	// need this to continue
-	size_t respDataLen = sizeof(responseData) - 1;
-	//if ((respDataLen) && (responseData)) {
-	resp->cCode = responseData[3];
-	memcpy(responseData - 2, resp->data, respDataLen - 2);
-	//}
+    //Close out the slave
+    xfer.control = getControlBits(slaveAddress, false);
+    bscXfer(&xfer);
+    if (verbose > 1) printf("Closed slave.\n");
+    gpioTerminate();
+    if (verbose > 1) printf("Terminated GPIOs.\n");
 
-	printf("Returning the ccode: %02x\n", resp->cCode);
 
-	
 
 	return &rsp;
 }
